@@ -46,7 +46,7 @@ app.layout = html.Div(children=[html.H1('SpaceX Launch Records Dashboard',
                                 html.Div(['Launch Site: ', dcc.RangeSlider(id='payload-slider',
                                     min=0, max=10000, step=1000,
                                     marks={0: '0',
-                                        100: '100'},
+                                        10000: '100000'},
                                     value=[min_payload, max_payload])]),
                                 # TASK 4: Add a scatter chart to show the correlation between payload and launch success
                                 html.Div(dcc.Graph(id='success-payload-scatter-chart')),
@@ -58,32 +58,51 @@ app.layout = html.Div(children=[html.H1('SpaceX Launch Records Dashboard',
 @app.callback(Output(component_id='success-pie-chart', component_property='figure'),
               Input(component_id='site-dropdown', component_property='value'))
 def get_pie_chart(entered_site):
-    filtered_df = spacex_df[spacex_df['Launch Site'] == entered_site]
     if entered_site == 'ALL':
-        fig = px.pie(spacex_df.groupby('Launch Site')['class'].mean().reset_index(), values='class', 
-        names='Launch Site', 
-        title='Total Successful Launches by site')
+        # Generate a pie chart for all launch sites
+        fig = px.pie(spacex_df, 
+                     names='Launch Site', 
+                     values='class', 
+                     title='Total Successful Launches by Site')
         return fig
     else:
-        # return the outcomes piechart for a selected site
-        fig = px.pie(filtered_df.groupby('Launch Site')['class'].mean().reset_index(), values='class', 
-        names='Launch Site', 
-        title=f'Total Success Launches for site {entered_site}')
+        # Filter data for the selected site
+        filtered_df = spacex_df[spacex_df['Launch Site'] == entered_site]
+        # Generate a pie chart for the selected site
+        fig = px.pie(filtered_df, 
+                     names='class', 
+                     title=f'Total Success Launches for Site {entered_site}')
         return fig
 # TASK 4:
 # Add a callback function for `site-dropdown` and `payload-slider` as inputs, `success-payload-scatter-chart` as output
 @app.callback(Output(component_id='success-payload-scatter-chart', component_property='figure'),
               [Input(component_id='site-dropdown', component_property='value'),
                Input(component_id='payload-slider', component_property='value')])
-def get_scatter_chart(entered_site, entered_load):
-    filtered_df = spacex_df[spacex_df['Launch Site'] == entered_site]
+def get_scatter_chart(entered_site, payload_range):
+    # Unpack the slider values
+    min_payload, max_payload = payload_range
+    
+    # Filter the dataframe based on payload range
+    filtered_df = spacex_df[(spacex_df['Payload Mass (kg)'] >= min_payload) & 
+                            (spacex_df['Payload Mass (kg)'] <= max_payload)]
+    
     if entered_site == 'ALL':
-        fig = px.scatter(data_frame=spacex_df, x='Payload Mass (kg)', y='class', color='Booster Version Category')
-        return fig
+        # Generate scatter plot for all sites
+        fig = px.scatter(data_frame=filtered_df, 
+                         x='Payload Mass (kg)', 
+                         y='class', 
+                         color='Booster Version Category',
+                         title='Correlation Between Payload and Success for All Sites')
     else:
-        # return the outcomes piechart for a selected site
-        fig = px.scatter(data_frame=filtered_df, x='Payload Mass (kg)', y='class', color='Booster Version Category')
-        return fig
+        # Further filter the dataframe for the selected launch site
+        site_filtered_df = filtered_df[filtered_df['Launch Site'] == entered_site]
+        fig = px.scatter(data_frame=site_filtered_df, 
+                         x='Payload Mass (kg)', 
+                         y='class', 
+                         color='Booster Version Category',
+                         title=f'Correlation Between Payload and Success for {entered_site}')
+    
+    return fig
         
 # Run the app
 if __name__ == '__main__':
